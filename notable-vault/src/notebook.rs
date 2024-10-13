@@ -47,12 +47,12 @@ impl From<markdown::unist::Position> for TextRange {
     }
 }
 
-struct Heading {
+pub struct Heading {
     text: String,
     range: TextRange,
 }
 
-struct Link {
+pub struct Link {
     text: String,
     target: String,
     range: TextRange,
@@ -162,9 +162,13 @@ impl Notebook {
         }
     }
 
-    // TODO: refresh
+    pub fn refresh(self) -> Self {
+        Self::new(self.root)
+    }
 
     // TODO: change state
 
     // TODO: new note
+
+    // TODO: update individual note from contents
 }

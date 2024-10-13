@@ -1,4 +1,4 @@
 pub mod config;
-mod docket;
 mod notebook;
+mod tasks;
 pub mod vault;
