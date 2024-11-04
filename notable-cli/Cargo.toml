@@ -1,0 +1,11 @@
+[package]
+name = "notable-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.92"
+clap = { version = "4.5.20", features = ["derive"] }
+edit = "0.1.5"
+fuzzydate = "0.2.2"
+notable-vault = { version = "0.1.0", path = "../notable-vault" }

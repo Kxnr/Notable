@@ -1,4 +1,4 @@
 [workspace]
-members = ["notable-vault"]
+members = ["notable-vault", "notable-cli", "notable-lsp"]
 resolver = "2"
 

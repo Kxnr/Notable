@@ -1,6 +1,9 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
+use chrono::{DateTime, Local};
 use thiserror::Error;
+
+use crate::config::Notebook as NotebookConfig;
 
 #[derive(Error, Debug)]
 pub enum NotebookError {
@@ -10,11 +13,13 @@ pub enum NotebookError {
     UnsupportedPlatform,
 }
 
+#[derive(Clone)]
 struct TextPoint {
     line: u32,
     column: u32,
 }
 
+#[derive(Clone)]
 struct TextRange {
     start: TextPoint,
     end: TextPoint,
@@ -58,19 +63,41 @@ pub struct Link {
     range: TextRange,
 }
 
+pub struct BackLink {
+    text: String,
+    source: String,
+    range: TextRange,
+}
+
+impl From<(&PathBuf, &Link)> for BackLink {
+    fn from(item: (&PathBuf, &Link)) -> Self {
+        BackLink {
+            text: item.1.text.to_owned(),
+            // TODO: another one of those pesky normalization cases, could store a ref to a
+            // TODO: static map of names to keys instead of using names as keys
+            source: item.0.to_string_lossy().to_string(),
+            range: item.1.range.to_owned(),
+        }
+    }
+}
+
 pub struct Note {
     headings: Vec<Heading>,
     links: Vec<Link>,
 }
 
 pub struct Notebook {
-    root: PathBuf,
+    config: NotebookConfig,
     notes: HashMap<PathBuf, Note>,
+    backlinks: HashMap<String, Vec<BackLink>>,
 }
 
 impl Note {
-    fn parse_file(path: &PathBuf) -> Result<Self, NotebookError> {
+    // TODO: create new from file contents contents
+
+    pub fn parse_file(path: &PathBuf) -> Result<Self, NotebookError> {
         // TODO: check if is dir
+        // TODO: handle ref links
         let ast = markdown::to_mdast(
             &fs::read_to_string(path).map_err(|_| NotebookError::ErrorParsingNote)?,
             &markdown::ParseOptions::default(),
@@ -86,6 +113,8 @@ impl Note {
             match node {
                 // seems like I either have to clone the node or the fields to both get the node
                 // as a str and unpack the tuple variant
+                // TODO: check if is local link
+                // TODO: check if link link is within notebook
                 markdown::mdast::Node::Link(ref link) => {
                     links.push(Link {
                         text: node.to_string(),
@@ -125,17 +154,11 @@ impl Note {
 }
 
 impl Notebook {
-    // pub fn upsert(&mut self, path: PathBuf) {
-
-    // }
+    // TODO: normalize paths used as keys
 
     pub fn links(&self) -> impl Iterator<Item = &Link> {
         self.notes.values().map(|note| note.links.iter()).flatten()
     }
-
-    // fn backlinks(&self) -> impl Iterator<Item = &Link> {
-    //     todo!()
-    // }
 
     pub fn link_targets(&self) -> impl Iterator<Item = &Heading> {
         self.notes
@@ -144,8 +167,9 @@ impl Notebook {
             .flatten()
     }
 
-    pub fn new(path: PathBuf) -> Self {
-        let notes = ignore::Walk::new(&path)
+    pub fn new(notebook_config: &NotebookConfig) -> Self {
+        // the location must be a directory
+        let notes = ignore::Walk::new(&notebook_config.location)
             .filter_map(|entry| entry.ok())
             .map(|entry| {
                 let path = entry.into_path();
@@ -156,19 +180,59 @@ impl Notebook {
             })
             .filter_map(|entry| entry);
 
-        Notebook {
-            root: path,
+        let mut notebook = Notebook {
+            config: notebook_config.to_owned(),
             notes: HashMap::from_iter(notes),
-        }
+            backlinks: HashMap::new(),
+        };
+        notebook.update_backlinks();
+        notebook
     }
 
     pub fn refresh(self) -> Self {
-        Self::new(self.root)
+        Self::new(&self.config)
     }
 
-    // TODO: change state
+    pub fn upsert(&mut self, path: &PathBuf) {
+        let note = Note::parse_file(path).unwrap_or(Note {
+            headings: vec![],
+            links: vec![],
+        });
 
-    // TODO: new note
+        let _ = self.notes.insert(path.to_owned(), note);
+        self.update_backlinks();
+    }
 
-    // TODO: update individual note from contents
+    pub fn remove(&mut self, path: &PathBuf) {
+        self.notes.remove(path);
+        self.update_backlinks();
+    }
+
+    pub fn note_for(&mut self, when: Option<DateTime<Local>>) -> PathBuf {
+        let when = when.unwrap_or_else(Local::now);
+        let mut path = self.config.location.clone();
+        if let Some(template) = &self.config.template {
+            path.push(when.format(template).to_string());
+        } else {
+            path.push(when.format("%Y-%m-%d").to_string());
+        }
+        path.set_extension("md");
+        path
+    }
+
+    fn update_backlinks(&mut self) {
+        // TODO: less than efficient to update all backlinks all the time
+        self.backlinks = self
+            .notes
+            .iter()
+            .flat_map(|(key, note)| {
+                note.links
+                    .iter()
+                    .map(move |link| (link.target.to_owned(), BackLink::from((key, link))))
+            })
+            .fold(HashMap::new(), |mut acc, (key, backlink)| {
+                acc.entry(key).or_default().push(backlink);
+                acc
+            })
+    }
 }

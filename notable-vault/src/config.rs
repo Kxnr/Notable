@@ -6,19 +6,14 @@ use thiserror::Error;
 pub struct Config {
     pub root_path: PathBuf,
     pub notebooks: HashMap<String, Notebook>,
-    pub dockets: HashMap<String, Docket>,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct Notebook {
+    // TODO: require this location to be relative
     pub location: PathBuf,
+    pub index_file: PathBuf,
     pub template: Option<String>,
-}
-
-#[derive(Deserialize, Clone)]
-pub struct Docket {
-    // TODO: allow grouping of dockets into views
-    pub location: PathBuf,
 }
 
 #[derive(Error, Debug)]
@@ -31,18 +26,41 @@ pub enum ConfigError {
 
 impl Config {
     /// ```toml
-    /// [notable]
     /// root_path = "/home/kxnr/notable"
     ///
     /// [notebook.journal]
     /// location = "journal" # defaults to the name of the notebook
-    /// template = "%m-%d-%&" # template for creating a new note
-    ///
-    /// [docket.work]
-    /// location = "work" # defaults to the name of the docket
+    /// template = "%m-%d-%Y" # template for creating a new note
+    /// index_file = "index.md"
     /// ```
-    pub fn from_config_file(filename: &str) -> Result<Self, ConfigError> {
+    pub fn from_config_file(filename: &PathBuf) -> Result<Self, ConfigError> {
         let file_contents = read_to_string(filename).map_err(|_| ConfigError::BadFile)?;
-        toml::from_str(&file_contents).map_err(|_| ConfigError::BadToml)
+        Self::from_string(&file_contents)
+    }
+
+    pub fn from_string(config: &str) -> Result<Self, ConfigError> {
+        toml::from_str(&config).map_err(|_| ConfigError::BadToml)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    #[test]
+    fn example_config() {
+        let config_data = "\
+             root_path = \"/home/kxnr/notable\"
+    
+             [notebooks]
+             [notebooks.journal]
+             location = \"journal\" # defaults to the name of the notebook
+             template = \"%m-%d-%Y\" # template for creating a new note
+             index_file = \"index.md\"";
+
+        assert!(
+            Config::from_string(config_data).is_ok(),
+            "failed to parse config"
+        );
     }
 }

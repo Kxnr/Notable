@@ -5,11 +5,12 @@ edition = "2021"
 
 [dependencies]
 chrono = "0.4.38"
+fuzzydate = "0.2.2"
 ignore = "0.4.23"
 markdown = "1.0.0-alpha.21"
 markdown-ast = "0.1.1"
 notify = "6.1.1"
 petgraph = "0.6.5"
-serde = "1.0.208"
+serde ={ version="1.0.208", features=["derive"]}
 thiserror = "1.0.63"
 toml = "0.8.19"
