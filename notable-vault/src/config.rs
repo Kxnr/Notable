@@ -12,8 +12,9 @@ pub struct Config {
 pub struct Notebook {
     // TODO: require this location to be relative
     pub location: PathBuf,
-    pub index_file: PathBuf,
-    pub template: Option<String>,
+    // TODO: enforce StrftimeItems and leon template formats here
+    pub date_format: Option<String>,
+    pub note_template: Option<String>,
 }
 
 #[derive(Error, Debug)]
@@ -28,10 +29,10 @@ impl Config {
     /// ```toml
     /// root_path = "/home/kxnr/notable"
     ///
-    /// [notebook.journal]
+    /// [notebooks.journal]
     /// location = "journal" # defaults to the name of the notebook
-    /// template = "%m-%d-%Y" # template for creating a new note
-    /// index_file = "index.md"
+    /// date_format = "%m-%d-%Y" # template for creating a new note
+    /// note_template = "{ name }_{ date }" # template for creating a new note
     /// ```
     pub fn from_config_file(filename: &PathBuf) -> Result<Self, ConfigError> {
         let file_contents = read_to_string(filename).map_err(|_| ConfigError::BadFile)?;
@@ -52,11 +53,13 @@ mod tests {
         let config_data = "\
              root_path = \"/home/kxnr/notable\"
     
-             [notebooks]
              [notebooks.journal]
-             location = \"journal\" # defaults to the name of the notebook
-             template = \"%m-%d-%Y\" # template for creating a new note
-             index_file = \"index.md\"";
+             location = \"journal\"
+             date_format = \"%m-%d-%Y\"
+             date_format = 
+
+             [notebooks.work]
+             location = \"work\"";
 
         assert!(
             Config::from_string(config_data).is_ok(),
