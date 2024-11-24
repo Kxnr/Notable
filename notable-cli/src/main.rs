@@ -1,4 +1,5 @@
 use chrono::{Local, TimeZone};
+use std::env::home_dir;
 use std::path::PathBuf;
 
 use clap::{arg, Parser, Subcommand};
@@ -7,11 +8,20 @@ use notable_vault::{
     vault::{TemplateArgs, Vault},
 };
 
+fn get_default_config_path() -> PathBuf {
+    // This is deprecated, but I don't really care about supporting cygwin and would rather not
+    // pull in a crate for this
+    let mut dir = home_dir().unwrap();
+    dir.push(".config");
+    dir.push("notable");
+    dir.push("config.toml");
+    dir
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    #[arg(short, long)]
-    // TODO: default config
+    #[arg(short, long, default_value=get_default_config_path().into_os_string())]
     config: PathBuf,
 
     // make command optional; without it, open to index file
@@ -21,6 +31,13 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    // command ideas:
+    //    List
+    //      Graph
+    //      Outline
+    //    Move
+    //    Delete
+    //    Search
     Edit {
         notebook: String,
 

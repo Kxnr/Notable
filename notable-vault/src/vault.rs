@@ -79,6 +79,7 @@ impl Vault {
             .notebooks
             .get(&notebook_name)
             .ok_or(VaultError::BadNotebook)?;
+        // FIXME: using location to load, name to re-create path
         new_path.push(notebook_name);
         new_path.push(notebook.get_name(&args));
         new_path.set_extension("md");
